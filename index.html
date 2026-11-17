@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zen and the Art of Self-diagnosis: Which Check-Engine Code Are You?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Big+Shoulders+Display:wght@700;800&family=Russo+One&family=Share+Tech+Mono&family=Stardos+Stencil:wght@700&display=swap" rel="stylesheet">
+<style>
+[hidden] { display: none !important; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+/* Layout concept: one riveted steel sign panel with a hazard-stripe header, centered over a diamond-plate floor. Still hardware art (gears, pistons, nuts and bolts, wrenches) sits on the screen edges and changes per screen. No animated backgrounds. Single dark garage look by choice. */
+:root {
+  --bg: #101214;
+  --panel: rgba(24, 26, 29, 0.94);
+  --line: #3a4046;
+  --fg: #f2efe6;
+  --dim: #9aa3ab;
+  --yellow: #ffc800;
+  --orange: #ff6a13;
+  --red: #ff4d3a;
+  --steel: #b4bcc3;
+  --blue: #6fb3d9;
+  --green: #8bc34a;
+  --font-stencil: "Stardos Stencil", "Big Shoulders Display", Impact, "Arial Narrow", sans-serif;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Share Tech Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(60rem 34rem at 50% -8%, rgba(255, 200, 0, 0.07), transparent 62%),
+    radial-gradient(44rem 30rem at 100% 100%, rgba(255, 106, 19, 0.08), transparent 62%),
+    var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 22px 40px;
+  overflow-x: hidden;
+}
+[tabindex="-1"]:focus { outline: none; }
+button:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+a:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+
+.plate {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cg fill='%23fff' fill-opacity='.05'%3E%3Cellipse cx='7' cy='7' rx='5.5' ry='1.7' transform='rotate(45 7 7)'/%3E%3Cellipse cx='21' cy='21' rx='5.5' ry='1.7' transform='rotate(45 21 21)'/%3E%3Cellipse cx='21' cy='7' rx='5.5' ry='1.7' transform='rotate(-45 21 7)'/%3E%3Cellipse cx='7' cy='21' rx='5.5' ry='1.7' transform='rotate(-45 7 21)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%);
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 85%);
+}
+#decor, #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+#decor { z-index: 0; }
+#confetti { z-index: 20; }
+
+.shell { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; min-width: 0; }
+
+.status {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  font-family: var(--font-display); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--dim); margin: 0 0 14px;
+}
+.status .led { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(139, 195, 74, 0.8); }
+.status .sep { color: var(--line); }
+
+.panel {
+  position: relative;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  padding: 42px 26px 28px;
+  min-width: 0;
+  background:
+    radial-gradient(circle at 14px 26px, #aab2b9 0 2.5px, #3b4146 3px 5px, transparent 5.5px),
+    radial-gradient(circle at calc(100% - 14px) 26px, #aab2b9 0 2.5px, #3b4146 3px 5px, transparent 5.5px),
+    radial-gradient(circle at 14px calc(100% - 14px), #aab2b9 0 2.5px, #3b4146 3px 5px, transparent 5.5px),
+    radial-gradient(circle at calc(100% - 14px) calc(100% - 14px), #aab2b9 0 2.5px, #3b4146 3px 5px, transparent 5.5px),
+    linear-gradient(180deg, #212428, #16181b);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.panel::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 12px;
+  border-radius: 4px 4px 0 0;
+  background: repeating-linear-gradient(-45deg, var(--yellow) 0 12px, #111 12px 24px);
+}
+
+.eyebrow { font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); margin: 0 0 12px; }
+.logo {
+  font-family: "Russo One", var(--font-display); font-weight: 400; margin: 0;
+  font-size: clamp(1.6rem, 7.6vw, 3rem); line-height: 1.08; letter-spacing: 0.03em;
+  text-transform: uppercase; color: var(--yellow);
+  text-shadow: 3px 3px 0 #000;
+  text-wrap: balance; overflow-wrap: anywhere;
+}
+.tag { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.25rem, 5vw, 1.7rem); letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange); margin: 10px 0 18px; text-wrap: balance; }
+.lede { margin: 0 0 24px; color: var(--fg); max-width: 56ch; }
+
+.btn {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; letter-spacing: 0.14em; text-transform: uppercase;
+  background: var(--yellow); color: #14110a; border: 0; border-radius: 4px; padding: 13px 28px; cursor: pointer;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.25), 0 3px 0 #7a5f00;
+  transition: transform 0.12s, background 0.15s;
+}
+.btn:hover { background: #ffd633; transform: translateY(-1px); }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25), 0 1px 0 #7a5f00; }
+.btn.ghost { background: transparent; color: var(--orange); border: 2px solid var(--orange); box-shadow: none; }
+.btn.ghost:hover { background: rgba(255, 106, 19, 0.14); }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 30px 0 0; padding: 16px 0 0; border-top: 2px dashed var(--line); }
+.stats dt { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.stats dd { margin: 2px 0 0; font-family: var(--font-mono); font-size: 2rem; color: var(--yellow); font-variant-numeric: tabular-nums; }
+.note { margin: 18px 0 0; font-size: 0.88rem; color: var(--dim); }
+
+/* quiz */
+.q-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-family: var(--font-display); font-weight: 700; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.q-top b { color: var(--yellow); font-weight: 700; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.segs { display: flex; gap: 6px; margin: 10px 0 26px; }
+.seg { flex: 1; height: 8px; background: #2b3036; border-radius: 1px; }
+.seg.done { background: var(--yellow); }
+.seg.cur { background: var(--orange); }
+.q-type { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); margin: 0 0 8px; }
+.q-text { font-size: 1.32rem; line-height: 1.3; font-weight: 700; margin: 0 0 22px; text-wrap: balance; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 14px; align-items: center;
+  width: 100%; min-height: 54px; padding: 11px 14px; text-align: left;
+  font: inherit; color: var(--fg); background: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--line); border-radius: 4px; cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.opt .key { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--yellow); border: 2px solid currentColor; border-radius: 3px; }
+.opt:hover { border-color: var(--yellow); background: rgba(255, 200, 0, 0.08); }
+.opt.on { border-color: var(--orange); background: rgba(255, 106, 19, 0.16); }
+.opt.on .key { color: var(--orange); }
+.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.sbtn { height: 62px; font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; color: var(--fg); background: rgba(255, 255, 255, 0.04); border: 2px solid var(--line); border-radius: 4px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.sbtn:hover { border-color: var(--yellow); background: rgba(255, 200, 0, 0.08); color: var(--yellow); }
+.sbtn.on { border-color: var(--orange); background: rgba(255, 106, 19, 0.16); color: var(--orange); }
+.scale-labels { display: flex; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+.link { margin-top: 22px; padding: 8px 0; background: none; border: 0; font: inherit; font-size: 0.88rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); cursor: pointer; }
+.link:hover { color: var(--yellow); text-decoration: underline; }
+.link[disabled] { visibility: hidden; }
+
+/* result */
+.you { font-family: var(--font-display); font-weight: 800; margin: 0; font-size: clamp(2rem, 9vw, 3.2rem); line-height: 1.1; color: var(--fg); text-wrap: balance; overflow-wrap: anywhere; }
+.you span { color: var(--yellow); font-family: var(--font-mono); font-weight: 400; letter-spacing: 0.04em; }
+.readout {
+  position: relative; margin: 18px 0 14px; padding: 12px 16px 18px;
+  background: #0b0a06; border: 3px solid #3a4046; border-radius: 6px;
+  box-shadow: inset 0 0 34px rgba(255, 200, 0, 0.09), 0 0 0 1px #000;
+  overflow: hidden;
+}
+.readout::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px); }
+.r-top { display: flex; justify-content: space-between; gap: 12px; font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: #7d7340; }
+.r-code { margin: 6px 0 6px; font-family: var(--font-mono); font-size: clamp(3.2rem, 17vw, 5.6rem); line-height: 1.05; letter-spacing: 0.06em; color: var(--yellow); text-shadow: 0 0 18px rgba(255, 200, 0, 0.45); overflow-wrap: anywhere; }
+.r-name { font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; color: #e8dca0; text-wrap: balance; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+.chips li { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 10px; border: 2px solid var(--orange); border-radius: 3px; color: var(--orange); }
+.chips li.sev-low { border-color: var(--green); color: var(--green); }
+.chips li.sev-mid { border-color: var(--yellow); color: var(--yellow); }
+.chips li.sev-high { border-color: var(--red); color: var(--red); }
+.blurb { margin: 0 0 24px; font-size: 1.12rem; line-height: 1.5; max-width: 52ch; text-wrap: pretty; }
+.sub-h { font-family: var(--font-display); font-weight: 700; font-size: 1rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0 0 10px; padding-top: 16px; border-top: 2px dashed var(--line); }
+.bars { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 9px; }
+.bars li { display: grid; grid-template-columns: 6.6rem minmax(0, 1fr) 3rem; gap: 12px; align-items: center; font-size: 0.88rem; }
+.b-label { color: var(--fg); }
+.b-track { height: 10px; background: #2b3036; border-radius: 1px; overflow: hidden; }
+.b-fill { display: block; height: 100%; width: 0; }
+.b-tier { text-align: right; font-size: 0.72rem; letter-spacing: 0.1em; color: var(--dim); }
+.runners { margin: 0 0 24px; font-size: 0.92rem; color: var(--dim); }
+.runners b { color: var(--fg); font-weight: 700; font-family: var(--font-mono); }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.about-title { font-family: var(--font-stencil); font-weight: 700; margin: 0; font-size: clamp(1.5rem, 6.4vw, 2.3rem); line-height: 1.15; color: var(--yellow); text-shadow: 2px 2px 0 #000; text-wrap: balance; }
+.by { margin: 8px 0 24px; font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); }
+.about-line { margin: 0 0 20px; overflow-wrap: anywhere; }
+.about-link { color: var(--blue); text-decoration: underline; text-underline-offset: 4px; font-size: 1.05rem; }
+.about-link:hover { color: var(--yellow); }
+.about-actions { margin-top: 26px; }
+.strip { margin-top: 22px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; border-block: 2px dashed var(--line); padding: 10px 0; font-family: var(--font-mono); font-size: 0.92rem; color: var(--dim); }
+.foot { margin: 14px 0 0; font-size: 0.8rem; letter-spacing: 0.06em; color: var(--dim); text-align: center; }
+
+@media (max-width: 440px) {
+  .panel { padding: 38px 18px 24px; }
+  .bars li { grid-template-columns: 5.6rem minmax(0, 1fr) 2.6rem; gap: 8px; }
+  .q-text { font-size: 1.18rem; }
+  .sbtn { height: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+</style>
+
+</head>
+<body>
+<div class="plate" aria-hidden="true"></div>
+<svg id="decor" aria-hidden="true" focusable="false" preserveAspectRatio="none"></svg>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<main class="shell">
+  <p class="status"><span class="led"></span><span>Scan tool connected</span><span class="sep">/</span><span id="status-count">28 codes in the database</span></p>
+
+  <section class="panel" id="screen-start" aria-labelledby="t-start">
+    <p class="eyebrow">// obd-ii personality scan</p>
+    <h1 class="logo" id="t-start" tabindex="-1">Zen and the Art of Self-diagnosis</h1>
+    <p class="tag">Which Check-Engine Code Are You?</p>
+    <p class="lede">Answer 6 quick prompts. Your reactivity, stability, bonding, curiosity and order get weighed, then matched to one of the check-engine codes in the database.</p>
+    <div class="actions">
+      <button class="btn" id="start" type="button">Take the quiz</button>
+      <button class="btn ghost" id="about" type="button">About Us</button>
+    </div>
+    <dl class="stats">
+      <div><dt>Codes in database</dt><dd id="n-codes">28</dd></div>
+      <div><dt>Prompt database</dt><dd id="n-qs">50</dd></div>
+      <div><dt>Sampled per scan</dt><dd id="n-pick">6</dd></div>
+    </dl>
+    <p class="note">A check-engine code is a short alert your car's computer stores when something drifts out of spec.</p>
+  </section>
+
+  <section class="panel" id="screen-quiz" aria-labelledby="q-text" hidden>
+    <div class="q-top"><span>Scan in progress</span><b id="q-count">01 / 06</b></div>
+    <div class="segs" id="segs" aria-hidden="true"></div>
+    <p class="q-type" id="q-type"></p>
+    <h2 class="q-text" id="q-text" tabindex="-1"></h2>
+    <div id="q-body"></div>
+    <button class="link" id="back" type="button">&larr; Back</button>
+  </section>
+
+  <section class="panel" id="screen-about" aria-labelledby="about-title" hidden>
+    <p class="eyebrow">// about us</p>
+    <h2 class="about-title" id="about-title" tabindex="-1">Zen and the Art of Self-diagnosis: Which Check-Engine Code Are You?</h2>
+    <p class="by">by Quiet Work Games</p>
+    <h3 class="sub-h">Drop us a line</h3>
+    <p class="about-line"><a class="about-link" href="mailto:quietworkgames@gmail.com">quietworkgames@gmail.com</a></p>
+    <h3 class="sub-h">Buy the team a coffee</h3>
+    <p class="about-line"><a class="about-link" href="https://ko-fi.com/quietworkgames" target="_blank" rel="noopener noreferrer">https://ko-fi.com/quietworkgames</a></p>
+    <div class="actions about-actions">
+      <button class="btn" id="about-back" type="button">Back</button>
+    </div>
+  </section>
+
+  <section class="panel" id="screen-result" aria-labelledby="you-line" hidden>
+    <p class="eyebrow">// code retrieved</p>
+    <h2 class="you" id="you-line" tabindex="-1">You&rsquo;re <span id="code-id"></span>!</h2>
+    <div class="readout" id="readout" role="img">
+      <div class="r-top"><span>OBD-II</span><span>Stored code</span></div>
+      <div class="r-code" id="r-code"></div>
+      <div class="r-name" id="r-name"></div>
+    </div>
+    <ul class="chips"><li id="chip-system"></li><li id="chip-sev"></li></ul>
+    <p class="blurb" id="code-blurb"></p>
+    <h3 class="sub-h">Driver profile</h3>
+    <ul class="bars" id="bars"></ul>
+    <p class="runners" id="runners"></p>
+    <div class="actions">
+      <button class="btn" id="retake" type="button">Retake</button>
+      <button class="btn ghost" id="copy" type="button" aria-live="polite">Copy result</button>
+      <button class="btn ghost" id="again" type="button">More confetti</button>
+    </div>
+  </section>
+
+  <div class="strip" id="strip" aria-hidden="true"></div>
+  <p class="foot">For entertainment only. Not a substitute for a real diagnostic scan.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /*LOGIC-START*/
+  const KEYS = ['E', 'S', 'B', 'C', 'O'];
+  const TRAITS = {
+    E: { name: 'Reactivity', color: '#ff5a1f' },
+    S: { name: 'Stability', color: '#6fb3d9' },
+    B: { name: 'Bonding', color: '#ffc800' },
+    C: { name: 'Curiosity', color: '#8bc34a' },
+    O: { name: 'Order', color: '#cfd6dc' }
+  };
+  const SEV = [
+    { cls: 'sev-low', label: 'Keep driving' },
+    { cls: 'sev-mid', label: 'Book a shop visit' },
+    { cls: 'sev-high', label: 'Pull over soon' }
+  ];
+
+  // v = [Reactivity, Stability, Bonding, Curiosity, Order], each 0 to 10 (same trait shapes as the ion original)
+  // s = affected system, sev = index into SEV
+  const CODES = [
+    { n: 'P0480', nm: 'Cooling Fan 1 Control Circuit Malfunction', s: 'Cooling', sev: 1, v: [3, 5, 10, 4, 3], b: "You keep everyone cool and cooperative. Warm to a fault, you'll spin up for any friend who's overheating." },
+    { n: 'P0507', nm: 'Idle Air Control System RPM Higher Than Expected', s: 'Idle control', sev: 0, v: [9, 1, 8, 5, 2], b: 'Revving at a stoplight with nowhere to go. All the energy, all the time, and everyone ends up at your party.' },
+    { n: 'P0500', nm: 'Vehicle Speed Sensor "A" Malfunction', s: 'Speed sensing', sev: 1, v: [4, 4, 9, 2, 9], b: "You report the facts with no spin. Small, direct, and the one person who'll tell you exactly how fast you're going." },
+    { n: 'P0128', nm: 'Coolant Thermostat (Coolant Temperature Below Thermostat Regulating Temperature)', s: 'Cooling', sev: 0, v: [2, 9, 4, 1, 9], b: 'Never too hot, never too cold. Dependable, easy to be around, and welcome in any group.' },
+    { n: 'P0401', nm: 'Exhaust Gas Recirculation (EGR) Flow Insufficient Detected', s: 'Emissions', sev: 0, v: [8, 1, 6, 8, 6], b: 'A little edgy, a little mysterious. You recirculate your secrets and never quite show your hand.' },
+    { n: 'P0011', nm: '"A" Camshaft Position, Timing Over-Advanced or System Performance (Bank 1)', s: 'Engine timing', sev: 1, v: [3, 3, 3, 2, 10], b: 'Always a little early and always on schedule. Your spreadsheets have spreadsheets and your timing is flawless.' },
+    { n: 'P0457', nm: 'Evaporative Emission Control System Leak Detected (Fuel Cap Loose/Off)', s: 'Evaporative', sev: 0, v: [7, 8, 8, 1, 7], b: 'The gentlest code on the list. Cheerful, low drama, and fixed with a twist of the wrist.' },
+    { n: 'P0563', nm: 'System Voltage High', s: 'Electrical', sev: 1, v: [9, 8, 6, 2, 4], b: 'Overcharged and powering the entire car. Everyone runs on your energy, even when you are a bit much.' },
+    { n: 'P0113', nm: 'Intake Air Temperature Sensor 1 Circuit High', s: 'Air intake', sev: 0, v: [0, 4, 7, 9, 1], b: 'Head in the clouds and intake full of ideas. Dreamy, imaginative, and two steps ahead of the practical.' },
+    { n: 'P0420', nm: 'Catalyst System Efficiency Below Threshold (Bank 1)', s: 'Emissions', sev: 1, v: [2, 9, 9, 2, 5], b: 'You quietly clean up everyone else\'s emissions and never complain. Rock solid, a little worn, and still getting it done.' },
+    { n: 'P0505', nm: 'Idle Control System Malfunction', s: 'Idle control', sev: 0, v: [1, 8, 8, 7, 7], b: "The steady idle of the group. You keep everyone's mood from revving too high or stalling out." },
+    { n: 'P0171', nm: 'System Too Lean (Bank 1)', s: 'Fuel and air', sev: 1, v: [3, 2, 9, 9, 2], b: 'Running a little lean on fuel and rich on heart. You bring the sour jokes and the best conversations.' },
+    { n: 'P0217', nm: 'Engine Coolant Over Temperature Condition', s: 'Cooling', sev: 2, v: [10, 0, 0, 5, 6], b: 'Intense, dramatic, and running hot. Best admired from the shoulder with the hazards on.' },
+    { n: 'P0299', nm: 'Turbo/Supercharger "A" Underboost Condition', s: 'Forced induction', sev: 1, v: [9, 2, 2, 9, 4], b: 'Main character with a turbo to prove it. You walk in, spool up, and leave the room a little different.' },
+    { n: 'P0101', nm: 'Mass or Volume Air Flow "A" Circuit Range/Performance', s: 'Air intake', sev: 0, v: [4, 3, 2, 9, 9], b: 'A meticulous measurer. You notice the airflow nobody else sees, and every reading is a work of art.' },
+    { n: 'P0172', nm: 'System Too Rich (Bank 1)', s: 'Fuel and air', sev: 1, v: [8, 5, 9, 8, 0], b: 'Double the fuel and twice the noise. You throw the party and forget the cleanup.' },
+    { n: 'P0300', nm: 'Random/Multiple Cylinder Misfire Detected', s: 'Ignition', sev: 2, v: [10, 2, 4, 5, 1], b: 'Unstable but fabulous. You misfire in every direction and somehow make it look like a choice.' },
+    { n: 'P0087', nm: 'Fuel Rail/System Pressure Too Low', s: 'Fuel', sev: 2, v: [9, 4, 1, 2, 9], b: 'Rocket-fuel ambition, clean minimalist lines, and perpetually short on pressure. The ambition was never the problem.' },
+    { n: 'U0100', nm: 'Lost Communication With ECM/PCM "A"', s: 'Network', sev: 2, v: [8, 7, 0, 8, 8], b: 'The silent strategist. You plan alone, stop answering messages, then show up with a flawless plan.' },
+    { n: 'P0606', nm: 'Control Module Processor Fault (ECM/PCM Processor)', s: 'Computer', sev: 1, v: [1, 9, 1, 9, 5], b: 'You disappear into your own processor and come back with something strange and brilliant.' },
+    { n: 'P0441', nm: 'Evaporative Emission Control System Incorrect Purge Flow', s: 'Evaporative', sev: 0, v: [6, 6, 4, 0, 9], b: 'A clean freak with a purge for every bad vibe. You sanitize the mood on contact.' },
+    { n: 'P0016', nm: 'Crankshaft Position, Camshaft Position Correlation (Bank 1 Sensor A)', s: 'Engine timing', sev: 1, v: [3, 4, 6, 10, 6], b: 'The artist who gets everything back in sync. You fix what everyone else left out of alignment, and make it look easy.' },
+    { n: 'P0340', nm: 'Camshaft Position Sensor "A" Circuit Malfunction (Bank 1 or Single Sensor)', s: 'Ignition', sev: 1, v: [7, 7, 7, 8, 1], b: 'Sharp, spiky, and allergic to rules. You never read the manual, and your signal is always interesting.' },
+    { n: 'P0133', nm: 'O2 Sensor Circuit Slow Response (Bank 1 Sensor 1)', s: 'Emissions', sev: 0, v: [4, 8, 6, 9, 1], b: 'You keep your options open and answer when you feel like it. Your plans are loose and your potential is wide.' },
+    { n: 'P0741', nm: 'Torque Converter Clutch Circuit Performance or Stuck Off', s: 'Transmission', sev: 1, v: [9, 9, 8, 3, 1], b: 'The gym buddy of the drivetrain. Strong, loyal, always up for one more rep, and occasionally slips a little.' },
+    { n: 'P0560', nm: 'System Voltage Malfunction', s: 'Electrical', sev: 1, v: [1, 6, 10, 6, 3], b: "You tie every system together. Two jobs, one big heart, and the glue holding the group chat together." },
+    { n: 'P0335', nm: 'Crankshaft Position Sensor "A" Circuit Malfunction', s: 'Ignition', sev: 2, v: [3, 2, 3, 10, 3], b: 'You cut out unexpectedly and restart in a new direction. Spontaneous, ambidextrous, and a complete mystery.' },
+    { n: 'P0524', nm: 'Engine Oil Pressure Too Low', s: 'Lubrication', sev: 2, v: [2, 10, 5, 3, 4], b: 'Slow, solid, and shockingly durable. Somehow still running on the original oil.' }
+  ];
+
+  // Multiple choice: options carry trait weights. Agree/disagree: 1 to 5 moves one trait up or down (r flips it).
+  function mc(q, opts) { return { t: 'mc', q: q, o: opts.map(function (x) { return { x: x[0], w: x[1] }; }) }; }
+  function lk(q, k, r) { return { t: 'lk', q: q, k: k, r: !!r }; }
+
+  const QUESTIONS = [
+    mc("It's Saturday and you have no obligations. You...", [["Chase a spontaneous adventure", { E: 2, C: 1 }], ["Invite everyone you know over", { B: 2, E: 1 }], ["Finally reorganize the garage", { O: 2, S: 1 }], ["Have a slow, quiet nothing day", { S: 2 }]]),
+    mc("Pick a superpower.", [["Teleportation", { C: 2, E: 1 }], ["Mind-reading empathy", { B: 2 }], ["Time control", { O: 2, S: 1 }], ["Invulnerability", { S: 2, E: 1 }]]),
+    mc("The group project is falling apart. You...", [["Take charge and announce the plan", { E: 2, O: 1 }], ["Rally the team with snacks and pep talks", { B: 2 }], ["Build a color-coded schedule", { O: 2 }], ["Pitch a completely different idea", { C: 2 }]]),
+    mc("Pick a soundtrack.", [["Synthwave at full volume", { E: 2, C: 1 }], ["Lo-fi beats", { S: 2, C: 1 }], ["Sing-along classics", { B: 2 }], ["A playlist sorted by BPM", { O: 2 }]]),
+    mc("Your friends would call you...", [["Intense", { E: 2 }], ["Warm", { B: 2 }], ["Dependable", { S: 2 }], ["Unpredictable", { C: 2 }]]),
+    mc("Choose a shop accessory.", [["Safety glasses, always", { O: 2, S: 1 }], ["A flame-painted tool chest for flair", { E: 2, C: 1 }], ["A shop buddy for high fives", { B: 2 }], ["An unlabeled mystery bolt from the drawer", { C: 2, E: 1 }]]),
+    mc("A surprise changes your plans. You...", [["Love it and want more", { E: 2, C: 1 }], ["Adapt and help others adapt", { S: 2, B: 1 }], ["Need a minute to make a new plan", { O: 2 }], ["Turn it into a game", { C: 2, B: 1 }]]),
+    mc("Pick a pet.", [["A dragon (legally unclear)", { E: 2, C: 1 }], ["A loyal dog", { B: 2, S: 1 }], ["A tortoise", { S: 2 }], ["A pet rock with a spreadsheet", { O: 2, C: 1 }]]),
+    mc("What does your ideal workspace look like?", [["A neon-lit cyberpunk den", { C: 2, E: 1 }], ["A big table shared with teammates", { B: 2 }], ["Minimalist and labeled", { O: 2 }], ["A cozy chair, same as always", { S: 2 }]]),
+    mc("Someone cuts you in line. You...", [["Say something, loudly", { E: 2 }], ["Let it go, kindly", { S: 2, B: 1 }], ["Note the exact time for your records", { O: 2 }], ["Make a joke about it", { C: 2, B: 1 }]]),
+    mc("Your coffee order is...", [["Triple espresso, no small talk", { E: 2 }], ["Whatever a friend recommends", { B: 2 }], ["The same thing every day", { S: 2, O: 1 }], ["The weirdest seasonal flavor", { C: 2 }]]),
+    mc("A new part is invented and you get to name it. You pick...", [["The Boomulator", { E: 2, C: 1 }], ["The Friendship Wrench", { B: 2 }], ["The Consistent-o-Matic", { S: 2, O: 1 }], ["Something unpronounceable from German engineering", { C: 2, O: 1 }]]),
+    mc("Choose a vacation.", [["Cliff diving in Croatia", { E: 2 }], ["A family reunion cruise", { B: 2 }], ["A rail trip with a detailed itinerary", { O: 2 }], ["Wander a new city with no map", { C: 2 }]]),
+    mc("When you're stressed, you...", [["Sprint, lift, or shout into a pillow", { E: 2 }], ["Call a friend", { B: 2 }], ["Breathe and wait it out", { S: 2 }], ["Write a plan in bullet points", { O: 2 }]]),
+    mc("Pick a movie night.", [["An explosive action marathon", { E: 2 }], ["A rom-com with the whole crew", { B: 2 }], ["Mind-bending sci-fi", { C: 2 }], ["A comfort rewatch", { S: 2 }]]),
+    mc("Your phone's home screen is...", [["Meticulously organized folders", { O: 2 }], ["A chaotic collage of 200 apps", { C: 2 }], ["Group chats and photos of friends", { B: 2 }], ["The default setup, untouched", { S: 2 }]]),
+    mc("Pick a power color.", [["Electric magenta", { E: 2, C: 1 }], ["Warm amber", { B: 2 }], ["Deep navy", { S: 2, O: 1 }], ["Acid lime", { C: 2, E: 1 }]]),
+    mc("Choose a motto.", [["Go big or go home", { E: 2 }], ["We're better together", { B: 2 }], ["Slow and steady", { S: 2 }], ["A place for everything", { O: 2 }]]),
+    mc("What's the best part of a jigsaw puzzle?", [["Sorting the edge pieces first", { O: 2 }], ["Racing someone to finish", { E: 2, B: 1 }], ["Finding the weirdly shaped piece", { C: 2 }], ["Working on it together for days", { B: 2, S: 1 }]]),
+    mc("In an emergency, you're the one who...", [["Charges in", { E: 2 }], ["Keeps everyone calm", { S: 2, B: 1 }], ["Grabs the checklist", { O: 2 }], ["Improvises a clever fix", { C: 2 }]]),
+    mc("Pick a vehicle.", [["A rocket-powered skateboard", { E: 2, C: 1 }], ["A minivan for seven friends", { B: 2 }], ["A reliable old truck", { S: 2 }], ["A hovercraft you built yourself", { C: 2, O: 1 }]]),
+    mc("How do you load a dishwasher?", [["Precisely, with a system", { O: 2 }], ["Fast and chaotic, but it works", { E: 1, C: 1 }], ["Whatever works, I'll share the chore", { B: 2 }], ["The same way every time", { S: 2, O: 1 }]]),
+    mc("A mysterious door appears in the hallway. You...", [["Kick it open", { E: 2 }], ["Knock and call hello", { B: 2 }], ["Study the lock for a while", { O: 2, S: 1 }], ["Look for the hidden panel", { C: 2 }]]),
+    mc("Pick a snack.", [["Hot wings, extra hot", { E: 2 }], ["Shareable nachos", { B: 2 }], ["Plain crackers", { S: 2 }], ["Pickle ice cream", { C: 2 }]]),
+    mc("At a party, you're most likely...", [["On the dance floor", { E: 2, B: 1 }], ["Deep in conversation with one person", { B: 2, S: 1 }], ["Fixing the playlist queue", { O: 2, C: 1 }], ["Telling a story nobody believes", { C: 2, E: 1 }]]),
+
+    lk("I make decisions fast and sort out the fallout later.", 'E'),
+    lk("I like my desk tidy before I start anything.", 'O'),
+    lk("I'd rather spend Friday night with a crowd than alone.", 'B'),
+    lk("I enjoy trying things nobody has tried before.", 'C'),
+    lk("I stay calm when everyone else is panicking.", 'S'),
+    lk("I'd rather blend in than stand out.", 'E', true),
+    lk("I keep a to-do list and actually follow it.", 'O'),
+    lk("I'm good at making peace between friends who are arguing.", 'B'),
+    lk("My mind wanders to strange, random ideas.", 'C'),
+    lk("I like routines and feel uneasy when plans change.", 'S'),
+    lk("Big dramatic gestures are my love language.", 'E'),
+    lk("I read the instructions before I assemble anything.", 'O'),
+    lk("I remember birthdays and check in on people.", 'B'),
+    lk("I'm happiest doing the same thing every day.", 'C', true),
+    lk("Very little rattles me.", 'S'),
+    lk("I have strong opinions and I share them.", 'E'),
+    lk("My workspace is chaos and I like it that way.", 'O', true),
+    lk("I would share my last snack with a stranger.", 'B'),
+    lk("I sometimes do things just to see what happens.", 'C'),
+    lk("I've loved the same favorite things for years.", 'S'),
+    lk("I thrive under pressure and tight deadlines.", 'E'),
+    lk("I prefer clear rules over improvising.", 'O'),
+    lk("I feel energized after time with a big group.", 'B'),
+    lk("I'd rather invent a new method than follow the standard one.", 'C'),
+    lk("People describe me as steady and reliable.", 'S')
+  ];
+
+  const QUIZ_LENGTH = 6;
+  const SOFTMAX_K = 16;
+
+  function shuffle(a, rnd) {
+    rnd = rnd || Math.random;
+    const r = a.slice();
+    for (let i = r.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = r[i]; r[i] = r[j]; r[j] = t;
+    }
+    return r;
+  }
+
+  // Half multiple choice, half agree/disagree, shuffled together.
+  function pickQuestions(n, rnd) {
+    const mcs = shuffle(QUESTIONS.filter(function (q) { return q.t === 'mc'; }), rnd);
+    const lks = shuffle(QUESTIONS.filter(function (q) { return q.t === 'lk'; }), rnd);
+    const a = Math.floor(n / 2);
+    return shuffle(mcs.slice(0, a).concat(lks.slice(0, n - a)), rnd);
+  }
+
+  function scoreAnswer(q, ans) {
+    const d = { E: 0, S: 0, B: 0, C: 0, O: 0 };
+    if (q.t === 'mc') {
+      const w = q.o[ans].w;
+      for (const k in w) d[k] += w[k];
+    } else {
+      let v = ans - 3;
+      if (q.r) v = -v;
+      d[q.k] += v;
+    }
+    return d;
+  }
+
+  function buildProfile(qs, answers) {
+    const p = { E: 0, S: 0, B: 0, C: 0, O: 0 };
+    qs.forEach(function (q, i) {
+      const d = scoreAnswer(q, answers[i]);
+      KEYS.forEach(function (k) { p[k] += d[k]; });
+    });
+    return KEYS.map(function (k) { return p[k]; });
+  }
+
+  function center(v) { const m = v.reduce(function (s, x) { return s + x; }, 0) / v.length; return v.map(function (x) { return x - m; }); }
+  function norm(v) { return Math.sqrt(v.reduce(function (s, x) { return s + x * x; }, 0)); }
+  function cosine(a, b) {
+    const na = norm(a), nb = norm(b);
+    return na && nb ? a.reduce(function (s, x, i) { return s + x * b[i]; }, 0) / (na * nb) : 0;
+  }
+
+  // Codes sorted by how closely their trait shape matches the profile.
+  function rankCodes(profile, rnd) {
+    const pc = center(profile);
+    const list = CODES.map(function (code) { return { code: code, sim: cosine(pc, center(code.v)) }; });
+    if (norm(pc) < 1e-9) return shuffle(list, rnd);
+    return list.sort(function (a, b) { return b.sim - a.sim; });
+  }
+
+  // Weighted draw: close matches are far more likely, but every code keeps a chance.
+  function chooseCode(ranked, rnd) {
+    rnd = rnd || Math.random;
+    const ws = ranked.map(function (r) { return Math.exp(SOFTMAX_K * r.sim); });
+    const total = ws.reduce(function (s, x) { return s + x; }, 0);
+    let roll = rnd() * total;
+    for (let i = 0; i < ranked.length; i++) {
+      roll -= ws[i];
+      if (roll <= 0) return i;
+    }
+    return 0;
+  }
+
+  function barPercents(p) {
+    const m = Math.max.apply(null, p.map(Math.abs));
+    return p.map(function (x) { return m ? Math.max(6, Math.round(50 + 50 * x / m)) : 50; });
+  }
+  /*LOGIC-END*/
+
+  /* ---------- DOM ---------- */
+  const $ = function (id) { return document.getElementById(id); };
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const screens = { start: $('screen-start'), quiz: $('screen-quiz'), about: $('screen-about'), result: $('screen-result') };
+  const focusTargets = { start: 't-start', quiz: 'q-text', about: 'about-title', result: 'you-line' };
+  const DECOR_FOR = { start: 'gears', quiz: 'pistons', about: 'wrenches', result: 'hardware' };
+
+  let picked = [], answers = [], idx = 0, locked = false, current = null, decorKind = 'gears';
+
+  function show(name) {
+    Object.keys(screens).forEach(function (k) { screens[k].hidden = k !== name; });
+    decorKind = DECOR_FOR[name];
+    drawDecor();
+    const el = $(focusTargets[name]);
+    if (el) el.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+
+  function buildSegs() {
+    const wrap = $('segs');
+    wrap.innerHTML = '';
+    for (let i = 0; i < QUIZ_LENGTH; i++) {
+      const s = document.createElement('span');
+      s.className = 'seg';
+      wrap.appendChild(s);
+    }
+  }
+
+  function renderQuestion() {
+    const q = picked[idx];
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    $('q-count').textContent = pad(idx + 1) + ' / ' + pad(QUIZ_LENGTH);
+    Array.prototype.forEach.call($('segs').children, function (s, i) {
+      s.className = 'seg' + (i < idx ? ' done' : i === idx ? ' cur' : '');
+    });
+    $('q-type').textContent = q.t === 'mc' ? 'Choose one' : 'Rate 1 to 5';
+    $('q-text').textContent = q.q;
+    $('back').disabled = idx === 0;
+
+    const body = $('q-body');
+    body.innerHTML = '';
+    const prev = answers[idx];
+
+    if (q.t === 'mc') {
+      const wrap = document.createElement('div');
+      wrap.className = 'opts';
+      wrap.setAttribute('role', 'group');
+      wrap.setAttribute('aria-labelledby', 'q-text');
+      q.o.forEach(function (o, i) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'opt' + (prev === i ? ' on' : '');
+        const key = document.createElement('span');
+        key.className = 'key';
+        key.textContent = 'ABCD'[i];
+        const txt = document.createElement('span');
+        txt.textContent = o.x;
+        b.appendChild(key);
+        b.appendChild(txt);
+        b.addEventListener('click', function () { choose(i, b); });
+        wrap.appendChild(b);
+      });
+      body.appendChild(wrap);
+    } else {
+      const labels = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'];
+      const wrap = document.createElement('div');
+      wrap.className = 'scale';
+      wrap.setAttribute('role', 'group');
+      wrap.setAttribute('aria-labelledby', 'q-text');
+      for (let v = 1; v <= 5; v++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sbtn' + (prev === v ? ' on' : '');
+        b.textContent = String(v);
+        b.setAttribute('aria-label', v + ' of 5, ' + labels[v - 1]);
+        b.addEventListener('click', (function (val, btn) { return function () { choose(val, btn); }; })(v, b));
+        wrap.appendChild(b);
+      }
+      body.appendChild(wrap);
+      const lab = document.createElement('div');
+      lab.className = 'scale-labels';
+      lab.setAttribute('aria-hidden', 'true');
+      lab.innerHTML = '<span>Disagree</span><span>Agree</span>';
+      body.appendChild(lab);
+    }
+  }
+
+  function choose(val, btn) {
+    if (locked) return;
+    locked = true;
+    answers[idx] = val;
+    Array.prototype.forEach.call(btn.parentNode.children, function (c) { c.classList.remove('on'); });
+    btn.classList.add('on');
+    window.setTimeout(function () {
+      locked = false;
+      if (idx < QUIZ_LENGTH - 1) {
+        idx++;
+        renderQuestion();
+        $('q-text').focus({ preventScroll: true });
+      } else {
+        finish();
+      }
+    }, reduced ? 0 : 240);
+  }
+
+  function startQuiz() {
+    picked = pickQuestions(QUIZ_LENGTH);
+    answers = [];
+    idx = 0;
+    locked = false;
+    buildSegs();
+    renderQuestion();
+    show('quiz');
+  }
+
+  function finish() {
+    const profile = buildProfile(picked, answers);
+    const ranked = rankCodes(profile);
+    const k = chooseCode(ranked);
+    const winner = ranked[k].code;
+    const runners = ranked.filter(function (_, i) { return i !== k; }).slice(0, 2).map(function (r) { return r.code; });
+    renderResult(winner, profile, runners);
+    show('result');
+    window.setTimeout(confetti, 120);
+  }
+
+  function renderResult(code, profile, runners) {
+    current = code;
+    $('code-id').textContent = code.n;
+    $('copy').textContent = 'Copy result';
+    $('r-code').textContent = code.n;
+    $('r-name').textContent = code.nm;
+    $('readout').setAttribute('aria-label', code.n + ', ' + code.nm);
+    $('chip-system').textContent = 'System: ' + code.s;
+    const sev = SEV[code.sev];
+    const chip = $('chip-sev');
+    chip.className = sev.cls;
+    chip.textContent = 'Severity: ' + sev.label;
+    $('code-blurb').textContent = code.b;
+
+    const pct = barPercents(profile);
+    const bars = $('bars');
+    bars.innerHTML = '';
+    KEYS.forEach(function (key, i) {
+      const li = document.createElement('li');
+      const tier = pct[i] >= 70 ? 'HIGH' : pct[i] <= 35 ? 'LOW' : 'MID';
+      li.innerHTML = '<span class="b-label"></span><span class="b-track"><span class="b-fill"></span></span><span class="b-tier"></span>';
+      li.children[0].textContent = TRAITS[key].name;
+      li.children[2].textContent = tier;
+      const fill = li.children[1].firstChild;
+      fill.style.background = TRAITS[key].color;
+      fill.style.width = pct[i] + '%';
+      bars.appendChild(li);
+    });
+
+    const r = $('runners');
+    r.innerHTML = '';
+    r.appendChild(document.createTextNode('Also throwing codes: '));
+    runners.forEach(function (x, i) {
+      if (i) r.appendChild(document.createTextNode(' · '));
+      const b = document.createElement('b');
+      b.textContent = x.n;
+      r.appendChild(b);
+    });
+  }
+
+  /* ---------- copy result ---------- */
+  function resultText() {
+    if (!current) return '';
+    return "I'm " + current.n + ' (' + current.nm + ')! ' + current.b +
+      '\nWhich check-engine code are you? ' + window.location.href.split('#')[0];
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  let copyTimer = 0;
+  function flashCopy(msg) {
+    const b = $('copy');
+    b.textContent = msg;
+    window.clearTimeout(copyTimer);
+    copyTimer = window.setTimeout(function () { b.textContent = 'Copy result'; }, 2200);
+  }
+
+  function copyResult() {
+    const text = resultText();
+    if (!text) return;
+    const done = function (ok) { flashCopy(ok ? 'Copied!' : 'Copy failed'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(fallbackCopy(text)); });
+    } else {
+      done(fallbackCopy(text));
+    }
+  }
+
+  /* ---------- confetti (sparks, rivets, nuts, tools) ---------- */
+  const cv = $('confetti');
+  const cctx = cv.getContext('2d');
+  const CONF_COLORS = ['#ffc800', '#ff6a13', '#ff4d3a', '#cfd6dc', '#6fb3d9', '#ffffff'];
+  const CONF_TEXT = ['🔧', '🔩', '⚙️'];
+  let parts = [], cRaf = 0, cW = 0, cH = 0;
+
+  function sizeCanvas(canvas, ctx) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return [w, h];
+  }
+
+  function burst(x, y, n, base, spread, power) {
+    for (let i = 0; i < n; i++) {
+      const ang = base + (Math.random() - 0.5) * spread;
+      const sp = power * (0.4 + Math.random() * 0.8);
+      const r = Math.random();
+      parts.push({
+        x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+        g: 0.2 + Math.random() * 0.1,
+        w: 6 + Math.random() * 7, h: 3 + Math.random() * 5,
+        rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.35,
+        color: CONF_COLORS[Math.floor(Math.random() * CONF_COLORS.length)],
+        shape: r < 0.45 ? 'rect' : r < 0.6 ? 'circle' : r < 0.8 ? 'hex' : 'text',
+        txt: CONF_TEXT[Math.floor(Math.random() * CONF_TEXT.length)],
+        life: 0, max: 150 + Math.random() * 100
+      });
+    }
+  }
+
+  function confTick() {
+    cctx.clearRect(0, 0, cW, cH);
+    parts = parts.filter(function (p) { return p.life < p.max && p.y < cH + 40; });
+    parts.forEach(function (p) {
+      p.vx *= 0.99; p.vy += p.g; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
+      cctx.save();
+      cctx.globalAlpha = Math.max(0, Math.min(1, (p.max - p.life) / 40));
+      cctx.translate(p.x, p.y);
+      cctx.rotate(p.rot);
+      cctx.fillStyle = p.color;
+      if (p.shape === 'rect') cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      else if (p.shape === 'circle') { cctx.beginPath(); cctx.arc(0, 0, p.h * 0.7, 0, 6.283); cctx.fill(); }
+      else if (p.shape === 'hex') {
+        const rr = p.h * 1.4;
+        cctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = i * Math.PI / 3;
+          if (i) cctx.lineTo(rr * Math.cos(a), rr * Math.sin(a)); else cctx.moveTo(rr * Math.cos(a), rr * Math.sin(a));
+        }
+        cctx.closePath();
+        cctx.moveTo(rr * 0.45, 0);
+        cctx.arc(0, 0, rr * 0.45, 0, 6.283, true);
+        cctx.fill('evenodd');
+      } else { cctx.font = '18px sans-serif'; cctx.textAlign = 'center'; cctx.textBaseline = 'middle'; cctx.fillText(p.txt, 0, 0); }
+      cctx.restore();
+    });
+    if (parts.length) cRaf = window.requestAnimationFrame(confTick);
+    else { cRaf = 0; cctx.clearRect(0, 0, cW, cH); }
+  }
+
+  function confetti() {
+    if (reduced) return;
+    const s = sizeCanvas(cv, cctx);
+    cW = s[0]; cH = s[1];
+    burst(cW / 2, cH * 0.32, 130, -Math.PI / 2, Math.PI * 1.1, 15);
+    burst(0, cH * 0.75, 60, -Math.PI / 2 + 0.7, 0.9, 17);
+    burst(cW, cH * 0.75, 60, -Math.PI / 2 - 0.7, 0.9, 17);
+    window.setTimeout(function () { burst(cW / 2, cH * 0.4, 90, -Math.PI / 2, Math.PI * 1.3, 13); }, 450);
+    window.setTimeout(function () { burst(cW * 0.2, cH * 0.2, 50, Math.PI / 2, Math.PI * 0.8, 6); burst(cW * 0.8, cH * 0.2, 50, Math.PI / 2, Math.PI * 0.8, 6); }, 900);
+    if (!cRaf) cRaf = window.requestAnimationFrame(confTick);
+  }
+
+  /* ---------- still hardware art on the screen edges ---------- */
+  const decor = $('decor');
+  const FILL = '#23272c', STROKE = '#8a949c', DARK = '#0e0f10';
+
+  function rng(seed) {
+    let s = seed;
+    return function () { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  }
+  function f(n) { return Number(n).toFixed(1); }
+
+  function gearSvg(cx, cy, R, teeth, rot) {
+    const rIn = R * 0.8, ta = Math.PI * 2 / teeth;
+    let d = '';
+    for (let t = 0; t < teeth; t++) {
+      const a0 = rot + t * ta;
+      [[0, rIn], [0.12, R], [0.38, R], [0.5, rIn]].forEach(function (p) {
+        const a = a0 + p[0] * ta;
+        d += (d ? 'L' : 'M') + f(cx + p[1] * Math.cos(a)) + ' ' + f(cy + p[1] * Math.sin(a));
+      });
+    }
+    d += 'Z';
+    const hr = R * 0.22;
+    d += 'M' + f(cx + hr) + ' ' + f(cy) + 'A' + f(hr) + ' ' + f(hr) + ' 0 1 0 ' + f(cx - hr) + ' ' + f(cy) + 'A' + f(hr) + ' ' + f(hr) + ' 0 1 0 ' + f(cx + hr) + ' ' + f(cy) + 'Z';
+    return '<path d="' + d + '" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6" fill-rule="evenodd"/>' +
+      '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(R * 0.55) + '" fill="none" stroke="' + STROKE + '" stroke-width="1.2"/>';
+  }
+
+  function gearsColumn(c0, H) {
+    const radii = [34, 26, 40, 28, 36, 24, 38];
+    let y = 0, out = '';
+    for (let i = 0; y < H + 60; i++) {
+      const R = radii[i % radii.length], Rn = radii[(i + 1) % radii.length];
+      const teeth = Math.round(R / 3);
+      const x = c0 + (i % 2 ? 18 : -18);
+      out += gearSvg(x, y, R, teeth, i % 2 ? Math.PI / teeth : 0);
+      const dist = 0.93 * (R + Rn);
+      y += Math.sqrt(Math.max(100, dist * dist - 36 * 36));
+    }
+    return out;
+  }
+
+  function pistonsColumn(c0, H, off) {
+    const tile = 210;
+    let out = '';
+    for (let i = 0, y = -40; y < H + 40; i++, y += tile) {
+      const lift = (i * 53 + off) % 46;
+      const hy = y + 10 + lift;
+      const jx = ((i % 3) - 1) * 10;
+      out += '<rect x="' + f(c0 - 24) + '" y="' + f(y) + '" width="48" height="120" rx="5" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>';
+      out += '<line x1="' + f(c0) + '" y1="' + f(hy + 28) + '" x2="' + f(c0 + jx) + '" y2="' + f(y + 178) + '" stroke="' + STROKE + '" stroke-width="8" stroke-linecap="round"/>';
+      out += '<line x1="' + f(c0) + '" y1="' + f(hy + 28) + '" x2="' + f(c0 + jx) + '" y2="' + f(y + 178) + '" stroke="' + FILL + '" stroke-width="3.5" stroke-linecap="round"/>';
+      out += '<rect x="' + f(c0 - 19) + '" y="' + f(hy) + '" width="38" height="36" rx="3" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>';
+      [6, 11, 16].forEach(function (o) {
+        out += '<line x1="' + f(c0 - 19) + '" y1="' + f(hy + o) + '" x2="' + f(c0 + 19) + '" y2="' + f(hy + o) + '" stroke="' + STROKE + '" stroke-width="1.2"/>';
+      });
+      out += '<circle cx="' + f(c0) + '" cy="' + f(hy + 28) + '" r="4" fill="' + DARK + '" stroke="' + STROKE + '" stroke-width="1.2"/>';
+      out += '<circle cx="' + f(c0) + '" cy="' + f(y + 190) + '" r="20" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>';
+      out += '<circle cx="' + f(c0 + jx) + '" cy="' + f(y + 178) + '" r="6" fill="' + DARK + '" stroke="' + STROKE + '" stroke-width="1.2"/>';
+    }
+    return out;
+  }
+
+  function hexPath(cx, cy, r) {
+    let d = '';
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;
+      d += (i ? 'L' : 'M') + f(cx + r * Math.cos(a)) + ' ' + f(cy + r * Math.sin(a));
+    }
+    return d + 'Z';
+  }
+
+  function nutSvg(cx, cy, r, deg) {
+    const hr = r * 0.42;
+    const d = hexPath(cx, cy, r) + 'M' + f(cx + hr) + ' ' + f(cy) + 'A' + f(hr) + ' ' + f(hr) + ' 0 1 0 ' + f(cx - hr) + ' ' + f(cy) + 'A' + f(hr) + ' ' + f(hr) + ' 0 1 0 ' + f(cx + hr) + ' ' + f(cy) + 'Z';
+    return '<g transform="rotate(' + f(deg) + ' ' + f(cx) + ' ' + f(cy) + ')"><path d="' + d + '" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6" fill-rule="evenodd"/>' +
+      '<circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r * 0.82) + '" fill="none" stroke="' + STROKE + '" stroke-width="1"/></g>';
+  }
+
+  function boltSvg(cx, cy, r, L, deg) {
+    const top = cy - L / 2, headH = r * 0.8;
+    let out = '<g transform="rotate(' + f(deg) + ' ' + f(cx) + ' ' + f(cy) + ')">';
+    out += '<rect x="' + f(cx - r * 0.5) + '" y="' + f(top + headH) + '" width="' + f(r) + '" height="' + f(L - headH) + '" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>';
+    for (let y = top + headH + 6; y < top + L - 3; y += 6) {
+      out += '<line x1="' + f(cx - r * 0.5) + '" y1="' + f(y) + '" x2="' + f(cx + r * 0.5) + '" y2="' + f(y + 2) + '" stroke="' + STROKE + '" stroke-width="1"/>';
+    }
+    out += '<rect x="' + f(cx - r * 0.9) + '" y="' + f(top) + '" width="' + f(r * 1.8) + '" height="' + f(headH) + '" rx="2" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/></g>';
+    return out;
+  }
+
+  function screwSvg(cx, cy, r, deg) {
+    const t = r * 0.22, l = r * 1.3;
+    return '<g transform="rotate(' + f(deg) + ' ' + f(cx) + ' ' + f(cy) + ')"><circle cx="' + f(cx) + '" cy="' + f(cy) + '" r="' + f(r) + '" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>' +
+      '<rect x="' + f(cx - l / 2) + '" y="' + f(cy - t / 2) + '" width="' + f(l) + '" height="' + f(t) + '" fill="' + DARK + '"/>' +
+      '<rect x="' + f(cx - t / 2) + '" y="' + f(cy - l / 2) + '" width="' + f(t) + '" height="' + f(l) + '" fill="' + DARK + '"/></g>';
+  }
+
+  function hardwareColumn(c0, H, rand) {
+    const kinds = ['nut', 'bolt', 'screw', 'nut', 'screw', 'bolt'];
+    let y = 20, out = '';
+    for (let i = 0; y < H + 60; i++) {
+      const kind = kinds[i % kinds.length];
+      const x = c0 + (rand() - 0.5) * 24;
+      const deg = rand() * 60 - 30;
+      if (kind === 'nut') { out += nutSvg(x, y, 22 + rand() * 6, deg); y += 78; }
+      else if (kind === 'bolt') { out += boltSvg(x, y + 30, 14 + rand() * 4, 70 + rand() * 20, deg + 90 * (i % 2)); y += 105; }
+      else { out += screwSvg(x, y, 17 + rand() * 4, deg); y += 66; }
+    }
+    return out;
+  }
+
+  let wrenchId = 0;
+  function wrenchSvg(cx, cy, s, deg) {
+    wrenchId++;
+    const head = 'M8 -18.33A20 20 0 1 1 -8 -18.33L-8 -4L8 -4Z';
+    return '<g transform="translate(' + f(cx) + ' ' + f(cy) + ') rotate(' + f(deg) + ') scale(' + s + ')">' +
+      '<rect x="-7" y="6" width="14" height="108" rx="7" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6"/>' +
+      '<path d="' + head + '" fill="' + FILL + '" stroke="' + STROKE + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<rect x="-6" y="4" width="12" height="6" fill="' + FILL + '"/>' +
+      '<circle cx="0" cy="104" r="3.6" fill="' + DARK + '" stroke="' + STROKE + '" stroke-width="1.2"/></g>';
+  }
+
+  function wrenchesColumn(c0, H, rand, flip) {
+    const rots = [-32, 18, -12, 38, -24, 10];
+    let y = 0, out = '';
+    for (let i = 0; y < H + 80; i++) {
+      const s = 0.9 + rand() * 0.25;
+      out += wrenchSvg(c0 + (i % 2 ? 14 : -14), y, s, rots[(i + (flip ? 3 : 0)) % rots.length]);
+      y += 150;
+    }
+    return out;
+  }
+
+  function drawDecor() {
+    const W = window.innerWidth, H = window.innerHeight;
+    decor.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    const inset = Math.max(50, Math.min(W * 0.09, 150));
+    const centers = [inset, W - inset];
+    let out = '<g opacity="0.55">';
+    centers.forEach(function (c0, hi) {
+      const rand = rng(41 + hi * 97);
+      if (decorKind === 'gears') out += gearsColumn(c0, H);
+      else if (decorKind === 'pistons') out += pistonsColumn(c0, H, hi * 23);
+      else if (decorKind === 'hardware') out += hardwareColumn(c0, H, rand);
+      else out += wrenchesColumn(c0, H, rand, !!hi);
+    });
+    decor.innerHTML = out + '</g>';
+  }
+
+  /* ---------- init ---------- */
+  function init() {
+    $('n-codes').textContent = String(CODES.length);
+    $('n-qs').textContent = String(QUESTIONS.length);
+    $('n-pick').textContent = String(QUIZ_LENGTH);
+    $('status-count').textContent = CODES.length + ' codes in the database';
+
+    $('strip').innerHTML = CODES.map(function (c) { return '<span>' + c.n + '</span>'; }).join('');
+
+    $('start').addEventListener('click', startQuiz);
+    $('about').addEventListener('click', function () { show('about'); });
+    $('about-back').addEventListener('click', function () { show('start'); });
+    $('retake').addEventListener('click', function () { show('start'); });
+    $('again').addEventListener('click', confetti);
+    $('copy').addEventListener('click', copyResult);
+    $('back').addEventListener('click', function () {
+      if (locked || idx === 0) return;
+      idx--;
+      renderQuestion();
+      $('q-text').focus({ preventScroll: true });
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (screens.quiz.hidden || locked || e.ctrlKey || e.metaKey || e.altKey) return;
+      const q = picked[idx];
+      const k = e.key.toLowerCase();
+      let target = null;
+      if (q.t === 'mc') {
+        const i = 'abcd'.indexOf(k) >= 0 && k.length === 1 ? 'abcd'.indexOf(k) : '1234'.indexOf(k) >= 0 && k.length === 1 ? '1234'.indexOf(k) : -1;
+        if (i >= 0) target = $('q-body').querySelectorAll('.opt')[i];
+      } else if ('12345'.indexOf(k) >= 0 && k.length === 1) {
+        target = $('q-body').querySelectorAll('.sbtn')[Number(k) - 1];
+      }
+      if (target) target.click();
+    });
+
+    drawDecor();
+    window.addEventListener('resize', function () {
+      drawDecor();
+      if (cRaf) { const s = sizeCanvas(cv, cctx); cW = s[0]; cH = s[1]; }
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
